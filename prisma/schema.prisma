@@ -6,12 +6,20 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id    String  @id @default(auto()) @map("_id") @db.ObjectId
-  email String  @unique
-  name  String?
+  id             Int      @id @default(autoincrement())
+  createdAt      DateTime @default(now())
+  password       String
+  email          String   @unique
+  accountName    Json
+  dob            DateTime
+  address        String
+  phoneNumber    String
+  accountBalance Float?   @default(0.00)
+  accountType    String
+  status         String?  @default("active")
 }
