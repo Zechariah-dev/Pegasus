@@ -8,4 +8,12 @@ export class AuthService {
   create(data: Prisma.UserCreateInput) {
     return this.prismaa.user.create({ data });
   }
+
+  findByAccountNumber(acc: number) {
+    return this.prismaa.user.findUnique({
+      where: {
+        accountNumber: acc,
+      },
+    });
+  }
 }

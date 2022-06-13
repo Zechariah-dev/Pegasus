@@ -19,6 +19,7 @@ model User {
   dob            DateTime
   address        String
   phoneNumber    String
+  accountNumber  BigInt?  @unique
   accountBalance Float?   @default(0.00)
   accountType    String
   status         String?  @default("active")

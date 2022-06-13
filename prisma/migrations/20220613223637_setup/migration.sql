@@ -8,10 +8,12 @@ CREATE TABLE `User` (
     `dob` DATETIME(3) NOT NULL,
     `address` VARCHAR(191) NOT NULL,
     `phoneNumber` VARCHAR(191) NOT NULL,
+    `accountNumber` BIGINT NULL,
     `accountBalance` DOUBLE NULL DEFAULT 0.00,
     `accountType` VARCHAR(191) NOT NULL,
     `status` VARCHAR(191) NULL DEFAULT 'active',
 
     UNIQUE INDEX `User_email_key`(`email`),
+    UNIQUE INDEX `User_accountNumber_key`(`accountNumber`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

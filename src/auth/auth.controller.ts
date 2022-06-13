@@ -9,7 +9,7 @@ import {
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { validateAge } from './auth.helper';
+import { AuthHelper } from './auth.helper';
 import * as bcrypt from 'bcrypt';
 import { LoginUserDto } from './dto/login-user.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -21,6 +21,7 @@ export class AuthController {
   constructor(
     private readonly AuthService: AuthService,
     private readonly JwtService: JwtService,
+    private readonly AuthHelper: AuthHelper,
   ) {}
 
   prisma = new PrismaClient();
@@ -42,7 +43,7 @@ export class AuthController {
       );
     }
 
-    const validAge: boolean = validateAge(body.dob);
+    const validAge: boolean = this.AuthHelper.validateAge(body.dob);
     if (!validAge) {
       throw new BadRequestException(
         'The provided age is not valid, you must be 18 years or older.',
@@ -51,9 +52,12 @@ export class AuthController {
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(body.password, salt);
 
+    const accountNumber = await this.AuthHelper.generateAccountNumber();
+
     return this.AuthService.create({
       ...body,
       password: hashedPassword,
+      accountNumber,
       accountName: body.accountName as Prisma.JsonObject,
     });
   }
