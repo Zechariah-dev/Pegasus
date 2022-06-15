@@ -84,9 +84,10 @@ export class AuthController {
       throw new BadRequestException('Incorrect password');
     }
 
-    const payload = _.pick(user, ['email', 'id']);
-
-    const accessToken = await this.JwtService.sign(payload);
+    const accessToken = await this.JwtService.sign({
+      username: user.email,
+      sub: user.id,
+    });
 
     return { accessToken };
   }

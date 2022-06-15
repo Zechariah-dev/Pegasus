@@ -13,11 +13,20 @@ async function bootstrap() {
     .setDescription('The Pegasus API description')
     .setVersion('1.0')
     .addTag('users')
+    .addBearerAuth({
+      type: 'http',
+      name: 'authorization',
+      in: 'headers',
+      bearerFormat: 'Bearer ',
+    })
     .build();
 
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+    }),
+  );
 
   const document = SwaggerModule.createDocument(app, config);
 
