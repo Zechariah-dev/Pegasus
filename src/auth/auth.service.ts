@@ -3,14 +3,14 @@ import { Prisma, PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
-  prismaa = new PrismaClient();
+  prisma = new PrismaClient();
 
   create(data: Prisma.UserCreateInput) {
-    return this.prismaa.user.create({ data });
+    return this.prisma.user.create({ data });
   }
 
-  findByAccountNumber(acc: number) {
-    return this.prismaa.user.findUnique({
+  findByAccountNumber(acc: string) {
+    return this.prisma.user.findFirst({
       where: {
         accountNumber: acc,
       },

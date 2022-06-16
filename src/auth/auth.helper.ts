@@ -12,12 +12,12 @@ export class AuthHelper {
     return diffYear - 1970 >= 18;
   }
 
-  async generateAccountNumber(): Promise<number | bigint> {
+  async generateAccountNumber(): Promise<string> {
     let isUnique = false;
-    let accNo: number;
+    let accNo: string;
 
     while (!isUnique) {
-      accNo = Math.floor(Math.random() * 9999999999);
+      accNo = Math.floor(Math.random() * 9999999999).toString();
       let account = await this.AuthService.findByAccountNumber(accNo);
 
       if (!account) {
@@ -25,6 +25,6 @@ export class AuthHelper {
       }
     }
 
-    return accNo;
+    return accNo.toString();
   }
 }

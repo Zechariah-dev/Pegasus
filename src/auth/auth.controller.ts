@@ -1,6 +1,5 @@
 import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateUserDto } from './dto/create-user.dto';
 import { Prisma, PrismaClient } from '@prisma/client';
 import {
   ApiBadRequestResponse,
@@ -13,7 +12,7 @@ import { AuthHelper } from './auth.helper';
 import * as bcrypt from 'bcrypt';
 import { LoginUserDto } from './dto/login-user.dto';
 import { JwtService } from '@nestjs/jwt';
-import * as _ from 'lodash';
+import { RegisterUserDto } from './dto/register-user.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -27,11 +26,11 @@ export class AuthController {
   prisma = new PrismaClient();
 
   @Post('/register')
-  @ApiBody({ type: CreateUserDto })
+  @ApiBody({ type: RegisterUserDto })
   @ApiBadRequestResponse({ description: 'Bad request - invalid credentials' })
   @ApiCreatedResponse({ description: 'The user account has been created' })
-  async register(@Body() body: CreateUserDto) {
-    const existingUser = await this.prisma.user.findUnique({
+  async register(@Body() body: RegisterUserDto) {
+    const existingUser = await this.prisma.user.findFirst({
       where: {
         email: body.email,
       },
@@ -58,7 +57,8 @@ export class AuthController {
       ...body,
       password: hashedPassword,
       accountNumber,
-      accountName: body.accountName as Prisma.JsonObject,
+      dob: new Date(body.dob).toISOString(),
+      accountName: body.accountName as unknown as Prisma.InputJsonObject,
     });
   }
 
