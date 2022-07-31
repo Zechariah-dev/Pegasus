@@ -13,16 +13,17 @@ import * as bcrypt from 'bcrypt';
 import { LoginUserDto } from './dto/login-user.dto';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterUserDto } from './dto/register-user.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly AuthService: AuthService,
-    private readonly JwtService: JwtService,
+    // private readonly JwtService: JwtService,
     private readonly AuthHelper: AuthHelper,
   ) {}
-
+  JwtService: JwtService = new JwtService();
   prisma = new PrismaClient();
 
   @Post('/register')
@@ -84,11 +85,50 @@ export class AuthController {
       throw new BadRequestException('Incorrect password');
     }
 
+    // remove user password
+    delete user.password;
+
     const accessToken = await this.JwtService.sign({
       username: user.email,
       sub: user.id,
     });
 
-    return { accessToken };
+    const refreshToken = await this.JwtService.sign(
+      { username: user.email },
+      { secret: process.env.REFRESH_KEY, expiresIn: '10days' },
+    );
+
+    return { user, accessToken, refreshToken };
+  }
+
+  @Post('/refresh-token')
+  @ApiBody({ type: RefreshTokenDto })
+  @ApiBadRequestResponse({ description: 'Bad-request - invalid token' })
+  @ApiOkResponse({ description: 'refreshed token' })
+  async refreshToken(@Body() body: { token: string }) {
+    const payload = this.JwtService.verify(body.token, {
+      secret: process.env.REFRESH_KEY,
+    });
+
+    const { username } = payload;
+
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: username,
+      },
+      rejectOnNotFound: true,
+    });
+
+    const accessToken = await this.JwtService.sign({
+      username: user.email,
+      sub: user.id,
+    });
+
+    const refreshToken = await this.JwtService.sign(
+      { username: user.email },
+      { secret: process.env.REFRESH_KEY, expiresIn: '10days' },
+    );
+
+    return { refreshToken, accessToken };
   }
 }

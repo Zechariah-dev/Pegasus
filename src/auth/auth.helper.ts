@@ -17,7 +17,7 @@ export class AuthHelper {
     let accNo: string;
 
     while (!isUnique) {
-      accNo = Math.floor(Math.random() * 9999999999).toString();
+      accNo = String(777) + Math.floor(Math.random() * 9999999).toString();
       let account = await this.AuthService.findByAccountNumber(accNo);
 
       if (!account) {
