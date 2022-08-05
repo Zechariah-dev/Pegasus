@@ -9,7 +9,7 @@ import { UsersService } from 'src/users/users.service';
 @Module({
   imports: [
     JwtModule.register({
-      secret: 'hardguess',
+      secret: process.env.ACCESS_KEY,
       signOptions: {
         expiresIn: '2h',
       },
@@ -17,6 +17,6 @@ import { UsersService } from 'src/users/users.service';
   ],
   controllers: [AuthController],
   providers: [AuthService, AuthHelper, JwtStrategy, UsersService],
-  exports: [AuthService, AuthHelper, JwtStrategy, UsersService],
+  exports: [AuthService, AuthHelper, UsersService],
 })
 export class AuthModule {}

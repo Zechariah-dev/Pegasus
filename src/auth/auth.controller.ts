@@ -20,10 +20,10 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 export class AuthController {
   constructor(
     private readonly AuthService: AuthService,
-    // private readonly JwtService: JwtService,
+    private readonly JwtService: JwtService,
     private readonly AuthHelper: AuthHelper,
   ) {}
-  JwtService: JwtService = new JwtService();
+
   prisma = new PrismaClient();
 
   @Post('/register')
