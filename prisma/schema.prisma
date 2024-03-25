@@ -6,21 +6,74 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id             Int      @id @default(autoincrement())
-  createdAt      DateTime @default(now())
+  id             String   @id @default(uuid())
   password       String
   email          String   @unique
-  accountName    Json
-  dob            DateTime
+  firstname      String
+  lastname       String
+  middlename     String
+  dob            String
   address        String
-  phoneNumber    String
-  accountNumber  BigInt?  @unique
-  accountBalance Float?   @default(0.00)
-  accountType    String
-  status         String?  @default("active")
+  mobileNumber   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account   Account[]
+  locks     Lock[]
+}
+
+model Account {
+  id        String @id @default(uuid())      
+  type      String
+  number    BigInt  @unique
+  balance   Float   @default(0.00)
+  user      User @relation(fields: [userId], references: [id])
+  status    ACCOUNT_STATUS  @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    String
+
+  locks     Lock[]
+}
+
+enum ACCOUNT_STATUS {
+  ACTIVE
+  INACTIVE
+}
+
+enum LOCK_STATUS {
+  ACTIVE
+  INACTIVE
+}
+
+enum LOCK_TYPE {
+  ACCOUNT
+  USER
+}
+
+
+model Lock {
+  id        String  @id @default(uuid())
+  type      LOCK_TYPE
+  lockedAt  DateTime?
+  unlockAt  DateTime?
+  user      User? @relation(fields: [userId], references: [id])
+  account   Account? @relation(fields: [accountId], references: [id])
+  attempts  Int
+  status    LOCK_STATUS @default(ACTIVE)
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    String?
+  accountId String?
 }

@@ -1,6 +1,14 @@
-import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  BadRequestException,
+  HttpStatus,
+  HttpCode,
+  Logger,
+ 
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { Prisma, PrismaClient } from '@prisma/client';
 import {
   ApiBadRequestResponse,
   ApiBody,
@@ -8,34 +16,32 @@ import {
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { AuthHelper } from './auth.helper';
-import * as bcrypt from 'bcrypt';
 import { LoginUserDto } from './dto/login-user.dto';
-import { JwtService } from '@nestjs/jwt';
 import { RegisterUserDto } from './dto/register-user.dto';
+import { UsersService } from '../users/users.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ACCOUNTS_EVENTS } from '../accounts/accounts.type';
+import { LocksService } from '../locks/locks.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
+  private logger = new Logger(AuthController.name)
   constructor(
-    private readonly AuthService: AuthService,
-    private readonly JwtService: JwtService,
-    private readonly AuthHelper: AuthHelper,
-  ) {}
-
-  prisma = new PrismaClient();
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+    private readonly locksService: LocksService,
+    private eventEmitter: EventEmitter2,
+  ) { }
 
   @Post('/register')
+  @HttpCode(HttpStatus.CREATED)
   @ApiBody({ type: RegisterUserDto })
   @ApiBadRequestResponse({ description: 'Bad request - invalid credentials' })
   @ApiCreatedResponse({ description: 'The user account has been created' })
   async register(@Body() body: RegisterUserDto) {
-    const existingUser = await this.prisma.user.findFirst({
-      where: {
-        email: body.email,
-      },
-    });
+    const existingUser = await this.usersService.findByEmail(body.email);
 
     if (existingUser) {
       throw new BadRequestException(
@@ -43,92 +49,88 @@ export class AuthController {
       );
     }
 
-    const validAge: boolean = this.AuthHelper.validateAge(body.dob);
-    if (!validAge) {
-      throw new BadRequestException(
-        'The provided age is not valid, you must be 18 years or older.',
-      );
-    }
-    const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(body.password, salt);
+    const { accountType, ...rest } = body;
 
-    const accountNumber = await this.AuthHelper.generateAccountNumber();
+    const user = await this.authService.createUser(rest);
 
-    return this.AuthService.create({
-      ...body,
-      password: hashedPassword,
-      accountNumber,
-      dob: new Date(body.dob).toISOString(),
-      accountName: body.accountName as unknown as Prisma.InputJsonObject,
+    this.eventEmitter.emit(ACCOUNTS_EVENTS.CREATE_ACCOUNT, {
+      userId: user.id,
+      accountType,
     });
+
+    return { message: 'user account create successfully' };
   }
 
   @Post('/login')
   @ApiBody({ type: LoginUserDto })
   @ApiBadRequestResponse({ description: 'Bad request - invalid credentials' })
-  @ApiOkResponse({ description: 'login successful' })
+  @ApiOkResponse({ description: 'user logged in successfully' })
   async login(@Body() body: LoginUserDto) {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        email: body.email,
-      },
-    });
-
+    const user = await this.usersService.findByEmail(body.email);
     if (!user) {
       throw new BadRequestException(
-        "Account which the provided email doesn't exist",
+        "User with the provided email doesn't exist",
       );
     }
 
-    const isMatch = await bcrypt.compare(body.password, user.password);
-    if (!isMatch) {
-      throw new BadRequestException('Incorrect password');
+    const existingLock = await this.locksService.checkActiveUserLock(user.id);
+    this.logger.log("acive lock", existingLock)
+    const now = new Date();
+    if (existingLock && existingLock.unlockAt > now) {
+      throw new BadRequestException(
+        'Account is currently locked. Please try again shortly.',
+      );
     }
 
-    // remove user password
-    delete user.password;
+    if (
+      existingLock &&
+      existingLock.unlockAt < now &&
+      existingLock.attempts === 3
+    ) {
+      await this.locksService.deactivateLock(existingLock.id);
+    }
 
-    const accessToken = await this.JwtService.sign({
-      username: user.email,
-      sub: user.id,
+    const isMatch = await this.authService.comparePassword(
+      body.password,
+      user.password,
+    );
+    if (!isMatch) {
+      await this.locksService.createUserLock(user.id);
+      throw new BadRequestException('Incorrect password. Please try again.');
+    }
+
+    const tokens = this.authService.generateTokens({
+      email: user.email,
+      userId: user.id,
     });
 
-    const refreshToken = await this.JwtService.sign(
-      { username: user.email },
-      { secret: process.env.REFRESH_KEY, expiresIn: '10days' },
-    );
-
-    return { user, accessToken, refreshToken };
+    return {
+      message: 'User logged in successfully',
+      data: user,
+      tokens,
+    };
   }
 
   @Post('/refresh-token')
-  @ApiBody({ type: RefreshTokenDto })
   @ApiBadRequestResponse({ description: 'Bad-request - invalid token' })
-  @ApiOkResponse({ description: 'refreshed token' })
-  async refreshToken(@Body() body: { token: string }) {
-    const payload = this.JwtService.verify(body.token, {
-      secret: process.env.REFRESH_KEY,
-    });
-
-    const { username } = payload;
-
-    const user = await this.prisma.user.findUnique({
-      where: {
-        email: username,
-      },
-      rejectOnNotFound: true,
-    });
-
-    const accessToken = await this.JwtService.sign({
-      username: user.email,
-      sub: user.id,
-    });
-
-    const refreshToken = await this.JwtService.sign(
-      { username: user.email },
-      { secret: process.env.REFRESH_KEY, expiresIn: '10days' },
+  @ApiOkResponse({ description: 'tokens refreshed successfully' })
+  async refreshToken(@Body() body: RefreshTokenDto) {
+    const payload = this.authService.validateRefreshToken(
+      body.token,
     );
 
-    return { refreshToken, accessToken };
+    if (Date.now() >= payload.exp * 1000) {
+      throw new BadRequestException('refresh token expired');
+    }
+
+    const { email } = payload;
+
+    const user = await this.usersService.findByEmail(email);
+    const tokens = this.authService.generateTokens({
+      email: user.email,
+      userId: user.id,
+    });
+
+    return { message: 'tokens refreshed successfully', tokens };
   }
 }

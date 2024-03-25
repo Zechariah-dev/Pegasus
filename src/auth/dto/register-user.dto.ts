@@ -2,22 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsEmail,
   IsEnum,
-  IsJSON,
-  IsObject,
-  IsPhoneNumber,
   IsString,
+  Validate,
 } from 'class-validator';
-
-class AccountName {
-  @ApiProperty()
-  firstName: string;
-
-  @ApiProperty()
-  lastName: string;
-
-  @ApiProperty()
-  otherNames: string;
-}
+import { IsValidAge } from './validators/age.validator';
 
 export class RegisterUserDto {
   @ApiProperty()
@@ -32,6 +20,7 @@ export class RegisterUserDto {
   @ApiProperty({
     default: 'MM-DD-YYYY',
   })
+  @Validate(IsValidAge, [18])
   dob: string;
 
   @IsString()
@@ -45,14 +34,22 @@ export class RegisterUserDto {
   @ApiProperty({
     default: '+2348012345678',
   })
-  @IsPhoneNumber('NG')
-  phoneNumber: string;
+  mobileNumber: string;
 
   @IsString()
   @ApiProperty()
   address: string;
 
-  @IsObject()
-  @ApiProperty({ type: AccountName })
-  accountName: AccountName;
+  @IsString()
+  @ApiProperty({ type: 'string' })
+  firstname: string;
+
+  @IsString()
+  @ApiProperty({ type: 'string' })
+  lastname: string;
+  
+  @IsString()
+  @ApiProperty({ type: 'string' })
+  middlename: string;
 }
+

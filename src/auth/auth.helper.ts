@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { AuthService } from './auth.service';
 
 @Injectable()
 export class AuthHelper {
-  constructor(private readonly AuthService: AuthService) {}
 
   validateAge(dob: any) {
     const now = new Date().toDateString();
@@ -12,7 +10,7 @@ export class AuthHelper {
     return diffYear - 1970 >= 18;
   }
 
-  async generateAccountNumber(): Promise<string> {
+/*   async generateAccountNumber(): Promise<string> {
     let isUnique = false;
     let accNo: string;
 
@@ -26,5 +24,5 @@ export class AuthHelper {
     }
 
     return accNo.toString();
-  }
+  } */
 }

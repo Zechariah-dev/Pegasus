@@ -1,12 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { PrismaService } from './prisma.service';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const prismaService: PrismaService = app.get(PrismaService);
 
   const config = new DocumentBuilder()
     .setTitle('Pegasus')
@@ -31,8 +29,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
 
   SwaggerModule.setup('api-docs', app, document);
-
-  prismaService.enableShutdownHooks(app);
 
   await app.listen(3000);
 }
